@@ -18,9 +18,10 @@ def main():
 
     GtkLayerShell.init_for_window(window)
     GtkLayerShell.auto_exclusive_zone_enable(window)
-    GtkLayerShell.set_margin(window, GtkLayerShell.Edge.TOP, 10)
+    GtkLayerShell.set_margin(window, GtkLayerShell.Edge.TOP, 128)
     GtkLayerShell.set_margin(window, GtkLayerShell.Edge.BOTTOM, 10)
-    GtkLayerShell.set_anchor(window, GtkLayerShell.Edge.TOP, 1)
+    GtkLayerShell.set_anchor(window, GtkLayerShell.Edge.TOP, 256)
+    # GtkLayerShell.set_layer(window, GtkLayerShell.Layer.OVERLAY)
 
     window.show_all()
     window.connect("destroy", Gtk.main_quit)

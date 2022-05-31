@@ -1,24 +1,154 @@
+import gi
 from i3ipc import Connection
-from subprocess import Popen, PIPE
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+from gi.repository import Gdk
+
+# Connect to Sway, get all workspace names
+sway = Connection()
+workspaces = sway.get_workspaces()
+workspace_names: [str] = [i.name for i in workspaces if i.focused is False]
 
 
-def main():
-    # Connect to Sway, get all workspace names
-    sway = Connection()
-    workspaces = sway.get_workspaces()
-    workspace_names: [str] = [i.name for i in workspaces]
+def switch_workspace(workspace_name: str):
+    sway.command(f"workspace {workspace_name}")
+    Gtk.main_quit()
 
-    # Open `wofi` with the list of workspaces
-    proc = Popen(["/usr/bin/wofi", "-d", "--insensitive"],
-                 stdout=PIPE,
-                 stdin=PIPE,
-                 stderr=PIPE,
-                 universal_newlines=True)
-    selected_workspace = proc.communicate("\n".join(workspace_names))[0]
 
-    # Switch to workspace
-    sway.command(f"workspace {selected_workspace}")
+class WorkspaceSwitch(Gtk.Window):
+
+    def __init__(self):
+        super().__init__(title="Nylon: switch-workspace")
+        self.connect("destroy", Gtk.main_quit)
+        self.connect("key-press-event", self.key_pressed)
+
+        # SearchEntry
+        self.search_entry = Gtk.SearchEntry()
+        self.search_entry.connect("activate", self.search_entry_activate)
+        self.search_entry.connect("search-changed", self.search_entry_changed)
+        self.search_entry.connect("key-press-event", self.search_entry_key_pressed)
+
+        # ListBox
+        self.list_box = Gtk.ListBox()
+        # Make so that the user can't deselect the workspace
+        self.list_box.set_selection_mode(Gtk.SelectionMode.BROWSE)
+        self.list_box.set_filter_func(self.list_box_filter, None, False)
+        self.list_box.connect("row-activated", self.list_box_row_activated)
+        self.list_box.set_placeholder(Gtk.Label(visible=True, label="No workspaces match"))
+        for w in workspace_names:
+            label = Gtk.Label(label=f"{w}")
+            self.list_box.insert(label, -1)
+        # Can't use [self.list_box_select_first_visible_row] because nothing is visible yet!
+        self.list_box_select_first_row()
+
+        # Box
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, homogeneous=False)
+        self.box.pack_start(self.search_entry, False, True, 0)
+        self.box.pack_start(self.list_box, True, True, 0)
+        self.add(self.box)
+
+    @staticmethod
+    def key_pressed(widget, event):
+        if event.keyval == Gdk.KEY_Escape:
+            Gtk.main_quit()
+
+    #
+    # SearchEntry
+    #
+    def search_entry_changed(self, entry):
+        self.list_box.invalidate_filter()
+        self.list_box_select_first_visible_row()
+
+    def search_entry_key_pressed(self, widget, event) -> bool:
+        control_key = (event.state & Gdk.ModifierType.CONTROL_MASK)
+        match event.keyval:
+            case Gdk.KEY_Down:
+                self.list_box_select_next_visible_row()
+                return True
+            case Gdk.KEY_Up:
+                self.list_box_select_previous_visible_row()
+                return True
+            case Gdk.KEY_n if control_key:
+                self.list_box_select_next_visible_row()
+                return True
+            case Gdk.KEY_p if control_key:
+                self.list_box_select_previous_visible_row()
+                return True
+            case _:
+                return False
+
+    def search_entry_activate(self, entry: Gtk.SearchEntry):
+        selected_workspace = self.list_box_get_selected_workspace()
+        if selected_workspace is not None:
+            switch_workspace(selected_workspace)
+        else:
+            return
+
+    #
+    # ListBox
+    #
+    def list_box_filter(self, row, data, notify_destroy) -> bool:
+        current_search = self.search_entry.get_text()
+        if current_search in row.get_child().get_text().lower():
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def list_box_row_activated(box: Gtk.ListBox, activated_row: Gtk.ListBoxRow):
+        switch_workspace(activated_row.get_child().get_text())
+
+    def list_box_visible_rows(self) -> list[Gtk.ListBoxRow] | None:
+        visible_rows = [child for child in self.list_box.get_children() if child.get_mapped()]
+        if visible_rows:
+            return visible_rows
+        else:
+            return None
+
+    def list_box_get_selected_workspace(self) -> str | None:
+        selected_row = self.list_box.get_selected_row()
+        if selected_row is not None:
+            return selected_row.get_child().get_text()
+        else:
+            return None
+
+    def list_box_select_first_row(self):
+        self.list_box.select_row(self.list_box.get_children()[0])
+
+    def list_box_select_first_visible_row(self):
+        visible_rows = self.list_box_visible_rows()
+        if visible_rows is not None:
+            self.list_box.select_row(visible_rows[0])
+
+    def list_box_select_next_visible_row(self):
+        visible_rows = self.list_box_visible_rows()
+        current_row = self.list_box.get_selected_row()
+        assert (current_row is not None)
+        assert (current_row in visible_rows)
+        current_row_idx = visible_rows.index(current_row)
+
+        # Select next if not on last row
+        if current_row != visible_rows[-1]:
+            self.list_box.select_row(visible_rows[current_row_idx + 1])
+        # Select first row if currently on last
+        else:
+            self.list_box.select_row(visible_rows[0])
+
+    def list_box_select_previous_visible_row(self):
+        visible_rows = self.list_box_visible_rows()
+        current_row = self.list_box.get_selected_row()
+        current_row_idx = visible_rows.index(current_row)
+
+        # Select previous if not on first row
+        if current_row != visible_rows[0]:
+            self.list_box.select_row(visible_rows[current_row_idx - 1])
+        # Select last row if currently on first
+        else:
+            self.list_box.select_row(visible_rows[-1])
 
 
 if __name__ == '__main__':
-    main()
+    window = WorkspaceSwitch()
+    window.show_all()
+    Gtk.main()
