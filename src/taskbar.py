@@ -16,6 +16,7 @@ def main():
     button.connect("clicked", on_button_click)
     window.add(button)
 
+    # Anchor to: left, top, right
     GtkLayerShell.init_for_window(window)
     GtkLayerShell.auto_exclusive_zone_enable(window)
     GtkLayerShell.set_margin(window, GtkLayerShell.Edge.TOP, 128)

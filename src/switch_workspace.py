@@ -1,9 +1,10 @@
 import gi
 from i3ipc import Connection
 
+gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
-from gi.repository import Gdk
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import Gdk, Gtk, GtkLayerShell
 
 # Connect to Sway, get all workspace names
 sway = Connection()
@@ -17,11 +18,32 @@ def switch_workspace(workspace_name: str):
 
 
 class WorkspaceSwitch(Gtk.Window):
+    styling = b"""
+    box {
+        margin: 4px;
+    }
+    window {
+        border: 3px solid #458588;
+    }
+    """
 
     def __init__(self):
         super().__init__(title="Nylon: switch-workspace")
         self.connect("destroy", Gtk.main_quit)
         self.connect("key-press-event", self.key_pressed)
+
+        # Load CSS
+        screen = Gdk.Screen.get_default()
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(self.styling)
+        style_context = Gtk.StyleContext()
+        style_context.add_provider_for_screen(screen, css_provider,
+                                              Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+        # Use "wlr_layer_shell" protocol to float the window above everything else
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.TOP)
 
         # SearchEntry
         self.search_entry = Gtk.SearchEntry()
@@ -56,11 +78,11 @@ class WorkspaceSwitch(Gtk.Window):
     #
     # SearchEntry
     #
-    def search_entry_changed(self, entry):
+    def search_entry_changed(self, _entry):
         self.list_box.invalidate_filter()
         self.list_box_select_first_visible_row()
 
-    def search_entry_key_pressed(self, widget, event) -> bool:
+    def search_entry_key_pressed(self, _widget, event) -> bool:
         control_key = (event.state & Gdk.ModifierType.CONTROL_MASK)
         match event.keyval:
             case Gdk.KEY_Down:
