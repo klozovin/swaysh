@@ -1,31 +1,64 @@
+from datetime import datetime
+from threading import Thread
+from time import sleep
+
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 
-from gi.repository import Gtk, GtkLayerShell
+from gi.repository import GLib, Gtk, GtkLayerShell
 
 
-def on_button_click(button: Gtk.Button):
-    print("Hello, world!")
+class Clock(Gtk.Label):
+    def __init__(self):
+        super().__init__(label="n/a")
+        self.thread = Thread(target=self.loop)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def update_time(self):
+        now = datetime.now()
+        self.set_text(now.strftime("%H:%M:%S"))
+
+    def loop(self):
+        while True:
+            sleep(1)
+            GLib.idle_add(self.update_time)
+
+
+class TaskbarWindow(Gtk.Window):
+    def __init__(self):
+        super().__init__()
+        self.connect("destroy", Gtk.main_quit)
+
+        # Use wlr_layer_shell to position the taskbar at the bottom of the screen
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.auto_exclusive_zone_enable(self)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
+
+        # Box to keep workspace buttons and blocks
+        self.box = Gtk.Box()
+
+        # Workspace buttons
+        for i in range(10):
+            self.box.pack_start(Gtk.Button(label=f"{i}"), False, True, 0)
+
+        # Blocks
+        self.clock = Clock()
+        self.box.pack_end(self.clock, False, True, 10)
+        self.box.pack_end(Gtk.Label(label="✲ 50"), False, True, 10)
+        self.box.pack_end(Gtk.Label(label="𝅘𝅥𝅯 30"), False, True, 10)
+
+        # Add everything to widow
+        self.add(self.box)
 
 
 def main():
-    window = Gtk.Window()
-    button = Gtk.Button(label="Click Me!")
-    button.connect("clicked", on_button_click)
-    window.add(button)
-
-    # Anchor to: left, top, right
-    GtkLayerShell.init_for_window(window)
-    GtkLayerShell.auto_exclusive_zone_enable(window)
-    GtkLayerShell.set_margin(window, GtkLayerShell.Edge.TOP, 128)
-    GtkLayerShell.set_margin(window, GtkLayerShell.Edge.BOTTOM, 10)
-    GtkLayerShell.set_anchor(window, GtkLayerShell.Edge.TOP, 256)
-    # GtkLayerShell.set_layer(window, GtkLayerShell.Layer.OVERLAY)
-
+    window = TaskbarWindow()
     window.show_all()
-    window.connect("destroy", Gtk.main_quit)
     Gtk.main()
 
 

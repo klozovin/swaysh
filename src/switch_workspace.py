@@ -170,7 +170,7 @@ class WorkspaceSwitch(Gtk.Window):
             self.list_box.select_row(visible_rows[-1])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     window = WorkspaceSwitch()
     window.show_all()
     Gtk.main()
