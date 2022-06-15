@@ -15,7 +15,7 @@ def print_current_thread():
     print(f"Current thread native_id: {current_thread().native_id}")
 
 
-class WorkspaceSwitcher(Gtk.Box):
+class WorkspaceSwitcher(Gtk.EventBox):
     styling = b"""
     .active-workspace {
         font-weight: bold;
@@ -24,7 +24,10 @@ class WorkspaceSwitcher(Gtk.Box):
 
     def __init__(self):
         super().__init__()
-        self.current_workspace: str | None = None
+
+        # Box for the workspace buttons
+        self.box = Gtk.Box()
+        self.add(self.box)
 
         # Load CSS
         screen = Gdk.Screen.get_default()
@@ -39,38 +42,74 @@ class WorkspaceSwitcher(Gtk.Box):
         workspaces = self.sway_connection.get_workspaces()
         for w in workspaces:
             button = Gtk.Button(label=f"{w.name}")
+            button.connect("clicked", self.button_clicked)
             if w.focused:
                 button.get_style_context().add_class("active-workspace")
-            self.pack_start(button, expand=False, fill=True, padding=8)
+            self.box.pack_start(button, expand=False, fill=True, padding=8)
+
+        # Enable mouse scroll events for this widget
+        self.add_events(Gdk.EventMask.SCROLL_MASK)
+        self.connect("scroll-event", self.mouse_scrolled)
 
         # Start the thread listening on sway events
         self.thread = Thread(target=self.sway_ipc_thread)
         self.thread.daemon = True
         self.thread.start()
 
+    def button_clicked(self, button):
+        self.sway_connection.command(f"workspace {button.get_label()}")
+
+    def mouse_scrolled(self, widget, event: Gdk.EventScroll):
+        """
+        Handle mouse scroll event.
+
+        Switch to next/previous workspace, don't wrap around.
+        """
+        focused_workspace_idx, workspaces = self.get_workspaces_with_focused()
+        workspace_to_focus: i3ipc.WorkspaceReply | None = None
+        match event.get_scroll_direction()[1]:
+            case Gdk.ScrollDirection.DOWN:
+                if focused_workspace_idx != len(workspaces) - 1:
+                    workspace_to_focus = workspaces[focused_workspace_idx + 1]
+            case Gdk.ScrollDirection.UP:
+                if focused_workspace_idx != 0:
+                    workspace_to_focus = workspaces[focused_workspace_idx - 1]
+
+        if workspace_to_focus is not None:
+            self.sway_connection.command(f"workspace {workspace_to_focus.name}")
+
     def sway_ipc_thread(self):
         # Subscribe to sway workspace events
-        print(self.sway_connection)
-        self.sway_connection.on(i3ipc.Event.WORKSPACE_FOCUS, self.dummy)
+        self.sway_connection.on(i3ipc.Event.WORKSPACE_FOCUS, self.on_workspace_focus)
 
         # Start i3ipc main loop (should be run in separate thread)
         self.sway_connection.main()
 
-    def update_focused_workspace(self):
-        if self.current_workspace is None:
-            return
-
-        workspace_buttons = self.get_children()
+    def update_focused_workspace(self, current_workspace: str):
+        """
+        Change the styling of the button corresponding to the currently focused workspace.
+        """
+        workspace_buttons = self.box.get_children()
         for workspace in workspace_buttons:
             workspace.get_style_context().remove_class("active-workspace")
-        focused_workspace_button = next(filter(lambda x: x.get_label() == self.current_workspace,
-                                               self.get_children()))
+        focused_workspace_button = next(filter(lambda x: x.get_label() == current_workspace,
+                                               self.box.get_children()))
         focused_workspace_button.get_style_context().add_class("active-workspace")
 
-    def dummy(self, _sway: i3ipc.Connection, event: i3ipc.events.IpcBaseEvent):
-        self.current_workspace = event.current.name
-        print(f"Current workspace: {self.current_workspace}")
-        GLib.idle_add(self.update_focused_workspace)
+    def get_workspaces_with_focused(self) -> (int, [i3ipc.WorkspaceReply]):
+        workspaces = self.sway_connection.get_workspaces()
+        focused_workspace_idx: int = next(filter(
+            lambda x: x[1].focused == True,
+            enumerate(workspaces)
+        ))[0]
+        return focused_workspace_idx, workspaces
+
+    def on_workspace_focus(self, _sway: i3ipc.Connection, event: i3ipc.events.IpcBaseEvent):
+        """
+        Handler for sway event: change in focused workspace.
+        """
+        print(f"Current workspace: {event.current.name}")
+        GLib.idle_add(lambda: self.update_focused_workspace(event.current.name))
 
 
 class Clock(Gtk.Label):
@@ -122,7 +161,6 @@ class TaskbarWindow(Gtk.Window):
 def main():
     window = TaskbarWindow()
     window.show_all()
-    print_current_thread()
     Gtk.main()
 
 
