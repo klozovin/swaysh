@@ -1,21 +1,10 @@
-from datetime import datetime
-from threading import Thread, current_thread
-from time import sleep
+from threading import Thread
 
-import gi
 import i3ipc
-
-gi.require_version("Gdk", "3.0")
-gi.require_version("Gtk", "3.0")
-gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import GLib, Gdk, Gtk, GtkLayerShell
+from gi.repository import GLib, Gdk, Gtk
 
 
-def print_current_thread():
-    print(f"Current thread native_id: {current_thread().native_id}")
-
-
-class WorkspaceSwitcher(Gtk.EventBox):
+class Workspaces(Gtk.EventBox):
     styling = b"""
     .active-workspace {
         font-weight: bold;
@@ -78,13 +67,6 @@ class WorkspaceSwitcher(Gtk.EventBox):
         if workspace_to_focus is not None:
             self.sway_connection.command(f"workspace {workspace_to_focus.name}")
 
-    def sway_ipc_thread(self):
-        # Subscribe to sway workspace events
-        self.sway_connection.on(i3ipc.Event.WORKSPACE_FOCUS, self.on_workspace_focus)
-
-        # Start i3ipc main loop (should be run in separate thread)
-        self.sway_connection.main()
-
     def update_focused_workspace(self, current_workspace: str):
         """
         Change the styling of the button corresponding to the currently focused workspace.
@@ -99,70 +81,36 @@ class WorkspaceSwitcher(Gtk.EventBox):
     def get_workspaces_with_focused(self) -> (int, [i3ipc.WorkspaceReply]):
         workspaces = self.sway_connection.get_workspaces()
         focused_workspace_idx: int = next(filter(
-            lambda x: x[1].focused == True,
+            lambda x: x[1].focused,
             enumerate(workspaces)
         ))[0]
         return focused_workspace_idx, workspaces
 
-    def on_workspace_focus(self, _sway: i3ipc.Connection, event: i3ipc.events.IpcBaseEvent):
-        """
-        Handler for sway event: change in focused workspace.
-        """
-        print(f"Current workspace: {event.current.name}")
-        GLib.idle_add(lambda: self.update_focused_workspace(event.current.name))
+    #
+    # Sway event handlers
+    #
 
+    def sway_ipc_thread(self):
+        event_handlers = [
+            (i3ipc.Event.WORKSPACE_INIT, self.sway_workspace_init_handler),
+            (i3ipc.Event.WORKSPACE_FOCUS, self.sway_workspace_focus_handler),
+            (i3ipc.Event.WORKSPACE_EMPTY, self.sway_workspace_empty_handler)
+        ]
+        for event, handler in event_handlers:
+            self.sway_connection.on(
+                event,
+                # OMG, WTF, for loop scoping?!?
+                lambda con, evt, handler=handler: GLib.idle_add(handler, evt))
+        self.sway_connection.main()
 
-class Clock(Gtk.Label):
-    def __init__(self):
-        super().__init__(label="n/a")
-        self.thread = Thread(target=self.loop)
-        self.thread.daemon = True
-        self.thread.start()
+    # Should run in GTK main loop: sway_workspace_*_handler()
 
-    def update_time(self):
-        now = datetime.now()
-        self.set_text(now.strftime("%H:%M:%S"))
+    def sway_workspace_init_handler(self, event: i3ipc.WorkspaceEvent):
+        print(f"INIT: {event.change}/{event.current.name}")
 
-    def loop(self):
-        while True:
-            sleep(1)
-            GLib.idle_add(self.update_time)
+    def sway_workspace_focus_handler(self, event: i3ipc.WorkspaceEvent):
+        print(f"FOCUS: {event.change}/{event.current.name}")
+        self.update_focused_workspace(event.current.name)
 
-
-class TaskbarWindow(Gtk.Window):
-    def __init__(self):
-        super().__init__()
-        self.connect("destroy", Gtk.main_quit)
-
-        # Use wlr_layer_shell to position the taskbar at the bottom of the screen
-        GtkLayerShell.init_for_window(self)
-        GtkLayerShell.auto_exclusive_zone_enable(self)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
-
-        # Box to keep workspace buttons and blocks
-        self.box = Gtk.Box()
-
-        # Workspace switcher
-        self.workspace_switcher = WorkspaceSwitcher()
-        self.box.pack_start(self.workspace_switcher, False, True, 0)
-
-        # Blocks
-        self.clock = Clock()
-        self.box.pack_end(self.clock, False, True, 10)
-        self.box.pack_end(Gtk.Label(label="✲ 50"), False, True, 10)
-        self.box.pack_end(Gtk.Label(label="𝅘𝅥𝅯 30"), False, True, 10)
-
-        # Add everything to widow
-        self.add(self.box)
-
-
-def main():
-    window = TaskbarWindow()
-    window.show_all()
-    Gtk.main()
-
-
-if __name__ == '__main__':
-    main()
+    def sway_workspace_empty_handler(self, event: i3ipc.WorkspaceEvent):
+        print(f"EMPTY: {event.change}/{event.current.name}")
