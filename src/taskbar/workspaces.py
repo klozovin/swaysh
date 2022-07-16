@@ -28,13 +28,9 @@ class Workspaces(Gtk.EventBox):
 
         # Connect to sway, get workspaces and create button
         self.sway_connection = i3ipc.Connection()
-        workspaces = self.sway_connection.get_workspaces()
-        for w in workspaces:
-            button = Gtk.Button(label=f"{w.name}")
-            button.connect("clicked", self.button_clicked)
-            if w.focused:
-                button.get_style_context().add_class("active-workspace")
-            self.box.pack_start(button, expand=False, fill=True, padding=8)
+
+        # Create the workspace buttons
+        self._create_buttons()
 
         # Enable mouse scroll events for this widget
         self.add_events(Gdk.EventMask.SCROLL_MASK)
@@ -44,6 +40,25 @@ class Workspaces(Gtk.EventBox):
         self.thread = Thread(target=self.sway_ipc_thread)
         self.thread.daemon = True
         self.thread.start()
+
+    def _create_buttons(self):
+        # Clear all existing buttons
+        print("Clearing all buttons")
+        for button in self.box.get_children():
+            self.box.remove(button)
+
+        # Create new buttons
+        workspaces = self.sway_connection.get_workspaces()
+        for w in workspaces:
+            print(f"Creating button for workspace: {w.name}")
+            button = Gtk.Button(label=f"{w.name}")
+            button.connect("clicked", self.button_clicked)
+            if w.focused:
+                button.get_style_context().add_class("active-workspace")
+            self.box.pack_start(button, expand=False, fill=True, padding=8)
+
+        # Have to call this, otherwise the new buttons will not be visible.
+        self.box.show_all()
 
     def button_clicked(self, button):
         self.sway_connection.command(f"workspace {button.get_label()}")
@@ -94,6 +109,7 @@ class Workspaces(Gtk.EventBox):
         event_handlers = [
             (i3ipc.Event.WORKSPACE_INIT, self.sway_workspace_init_handler),
             (i3ipc.Event.WORKSPACE_FOCUS, self.sway_workspace_focus_handler),
+            (i3ipc.Event.WORKSPACE_RENAME, self.sway_workspace_rename_handler),
             (i3ipc.Event.WORKSPACE_EMPTY, self.sway_workspace_empty_handler)
         ]
         for event, handler in event_handlers:
@@ -106,11 +122,15 @@ class Workspaces(Gtk.EventBox):
     # Should run in GTK main loop: sway_workspace_*_handler()
 
     def sway_workspace_init_handler(self, event: i3ipc.WorkspaceEvent):
+        # new appeared, go through everything add ones missing
         print(f"INIT: {event.change}/{event.current.name}")
 
     def sway_workspace_focus_handler(self, event: i3ipc.WorkspaceEvent):
         print(f"FOCUS: {event.change}/{event.current.name}")
         self.update_focused_workspace(event.current.name)
+
+    def sway_workspace_rename_handler(self, event: i3ipc.WorkspaceEvent):
+        self._create_buttons()
 
     def sway_workspace_empty_handler(self, event: i3ipc.WorkspaceEvent):
         print(f"EMPTY: {event.change}/{event.current.name}")
