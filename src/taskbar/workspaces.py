@@ -122,14 +122,24 @@ class Workspaces(Gtk.EventBox):
     # Should run in GTK main loop: sway_workspace_*_handler()
 
     def sway_workspace_init_handler(self, event: i3ipc.WorkspaceEvent):
+        """
+        New workspace created.
+        """
         # new appeared, go through everything add ones missing
         print(f"INIT: {event.change}/{event.current.name}")
 
     def sway_workspace_focus_handler(self, event: i3ipc.WorkspaceEvent):
+        """
+        Change in focused workspace.
+        """
         print(f"FOCUS: {event.change}/{event.current.name}")
         self.update_focused_workspace(event.current.name)
 
     def sway_workspace_rename_handler(self, event: i3ipc.WorkspaceEvent):
+        """
+         Workspace renamed.
+         """
+
         self._create_buttons()
 
     def sway_workspace_empty_handler(self, event: i3ipc.WorkspaceEvent):
