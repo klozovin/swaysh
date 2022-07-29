@@ -125,7 +125,8 @@ class Workspaces(Gtk.EventBox):
         """
         New workspace created.
         """
-        # new appeared, go through everything add ones missing
+        # TODO: just add the new workspace button instead of recreating everything?
+        self._create_buttons()
         print(f"INIT: {event.change}/{event.current.name}")
 
     def sway_workspace_focus_handler(self, event: i3ipc.WorkspaceEvent):
@@ -139,8 +140,13 @@ class Workspaces(Gtk.EventBox):
         """
          Workspace renamed.
          """
-
         self._create_buttons()
 
     def sway_workspace_empty_handler(self, event: i3ipc.WorkspaceEvent):
+        """
+        Workspace deleted.
+        """
         print(f"EMPTY: {event.change}/{event.current.name}")
+        for button in self.box.get_children():
+            if button.get_label() == event.current.name:
+                self.box.remove(button)
