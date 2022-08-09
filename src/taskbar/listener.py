@@ -1,7 +1,7 @@
 import os
 import threading
 
-from gi.repository import GLib
+from gi.repository import GLib, Gtk
 
 from src import rename_workspace, switch_workspace
 
@@ -33,6 +33,8 @@ class CommandListener:
                     GLib.idle_add(self.workspace_rename)
                 elif "switch-workspace" in line:
                     GLib.idle_add(self.workspace_switch)
+                elif "exit" in line:
+                    GLib.idle_add(self.close_taskbar)
                 else:
                     # TODO: Use logging for this
                     print(f"Unknown command: {line}")
@@ -46,3 +48,7 @@ class CommandListener:
     def workspace_switch():
         window = switch_workspace.WorkspaceSwitch()
         window.show_all()
+
+    @staticmethod
+    def close_taskbar():
+        Gtk.main_quit()
