@@ -6,16 +6,6 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, Gtk, GtkLayerShell
 
-# Connect to Sway, get all workspace names
-sway = Connection()
-workspaces = sway.get_workspaces()
-workspace_names: [str] = [i.name for i in workspaces if i.focused is False]
-
-
-def switch_workspace(workspace_name: str):
-    sway.command(f"workspace {workspace_name}")
-    Gtk.main_quit()
-
 
 class WorkspaceSwitch(Gtk.Window):
     styling = b"""
@@ -29,8 +19,13 @@ class WorkspaceSwitch(Gtk.Window):
 
     def __init__(self):
         super().__init__(title="Nylon: switch-workspace")
-        self.connect("destroy", Gtk.main_quit)
         self.connect("key-press-event", self.key_pressed)
+
+        # Setup sway connection
+        self.sway = Connection()
+        self.sway_workspaces = self.sway.get_workspaces()
+        self.sway_workspace_names: [str] = [i.name for i in self.sway_workspaces if
+                                            i.focused is False]
 
         # Load CSS
         screen = Gdk.Screen.get_default()
@@ -58,7 +53,7 @@ class WorkspaceSwitch(Gtk.Window):
         self.list_box.set_filter_func(self.list_box_filter, None, False)
         self.list_box.connect("row-activated", self.list_box_row_activated)
         self.list_box.set_placeholder(Gtk.Label(visible=True, label="No workspaces match"))
-        for w in workspace_names:
+        for w in self.sway_workspace_names:
             label = Gtk.Label(label=f"{w}")
             self.list_box.insert(label, -1)
         # Can't use [self.list_box_select_first_visible_row] because nothing is visible yet!
@@ -70,10 +65,16 @@ class WorkspaceSwitch(Gtk.Window):
         self.box.pack_start(self.list_box, True, True, 0)
         self.add(self.box)
 
-    @staticmethod
-    def key_pressed(widget, event):
+    def key_pressed(self, widget, event):
         if event.keyval == Gdk.KEY_Escape:
-            Gtk.main_quit()
+            self.close()
+
+    def switch_workspace(self, workspace_name: str):
+        """
+        Switch to indicated workspace and close the window.
+        """
+        self.sway.command(f"workspace {workspace_name}")
+        self.close()
 
     #
     # SearchEntry
@@ -103,7 +104,7 @@ class WorkspaceSwitch(Gtk.Window):
     def search_entry_activate(self, entry: Gtk.SearchEntry):
         selected_workspace = self.list_box_get_selected_workspace()
         if selected_workspace is not None:
-            switch_workspace(selected_workspace)
+            self.switch_workspace(selected_workspace)
         else:
             return
 
@@ -117,9 +118,8 @@ class WorkspaceSwitch(Gtk.Window):
         else:
             return False
 
-    @staticmethod
-    def list_box_row_activated(box: Gtk.ListBox, activated_row: Gtk.ListBoxRow):
-        switch_workspace(activated_row.get_child().get_text())
+    def list_box_row_activated(self, box: Gtk.ListBox, activated_row: Gtk.ListBoxRow):
+        self.switch_workspace(activated_row.get_child().get_text())
 
     def list_box_visible_rows(self) -> list[Gtk.ListBoxRow] | None:
         visible_rows = [child for child in self.list_box.get_children() if child.get_mapped()]
@@ -172,5 +172,6 @@ class WorkspaceSwitch(Gtk.Window):
 
 if __name__ == "__main__":
     window = WorkspaceSwitch()
+    window.connect("destroy", Gtk.main_quit)
     window.show_all()
     Gtk.main()
