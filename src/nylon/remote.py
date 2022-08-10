@@ -3,14 +3,14 @@ import threading
 
 from gi.repository import GLib, Gtk
 
-from src import rename_workspace, switch_workspace
+from . import rename_workspace, switch_workspace
 
 
-class CommandListener:
+class RemoteControl:
     pipe_path: str = os.path.expanduser("~/.local/share/nylon/command")
 
     def __init__(self):
-        self.thread = threading.Thread(target=self._listener)
+        self.thread = threading.Thread(target=self._pipe_reader)
         self.thread.daemon = True
 
     def start(self):
@@ -24,7 +24,7 @@ class CommandListener:
         # Start the thread reading the pipe
         self.thread.start()
 
-    def _listener(self):
+    def _pipe_reader(self):
         while True:
             # Reopen the file on every line (inefficient, but fine)
             with open(self.pipe_path) as pipe_file:

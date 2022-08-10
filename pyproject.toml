@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "nylon"
+version = "0.1.0"
+description = "Utilities for sway"
+authors = ["klozovin"]
+license = "GPL-3.0-or-later"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+PyGObject-stubs = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

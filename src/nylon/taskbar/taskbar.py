@@ -1,5 +1,5 @@
-
 import gi
+
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
@@ -7,10 +7,8 @@ gi.require_version("GtkLayerShell", "0.1")
 import threading
 from gi.repository import Gtk, GtkLayerShell
 
-from clock import Clock
-from listener import CommandListener
-from workspaces import Workspaces
-
+from .clock import Clock
+from .workspaces import Workspaces
 
 
 def print_current_thread():
@@ -44,15 +42,3 @@ class TaskbarWindow(Gtk.Window):
 
         # Add everything to widow
         self.add(self.box)
-
-
-def main():
-    command_listener = CommandListener()
-    command_listener.start()
-    window = TaskbarWindow()
-    window.show_all()
-    Gtk.main()
-
-
-if __name__ == '__main__':
-    main()
