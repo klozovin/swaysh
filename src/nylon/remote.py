@@ -3,7 +3,7 @@ import threading
 
 from gi.repository import GLib, Gtk
 
-from . import rename_workspace, switch_workspace
+from . import launcher, rename_workspace, switch_workspace
 
 
 class RemoteControl:
@@ -33,6 +33,8 @@ class RemoteControl:
                     GLib.idle_add(self.workspace_rename)
                 elif "switch-workspace" in line:
                     GLib.idle_add(self.workspace_switch)
+                elif "launcher" in line:
+                    GLib.idle_add(self.launcher)
                 elif "exit" in line:
                     GLib.idle_add(self.close_taskbar)
                 else:
@@ -47,6 +49,11 @@ class RemoteControl:
     @staticmethod
     def workspace_switch():
         window = switch_workspace.WorkspaceSwitch()
+        window.show_all()
+
+    @staticmethod
+    def launcher():
+        window = launcher.Launcher()
         window.show_all()
 
     @staticmethod

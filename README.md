@@ -2,6 +2,15 @@ Integrated set of utilities to be used with the sway Wayland compositor.
 
 Currently implemented:
 
-* rudimentary taskbar with workspaces and datetime
-* renaming a workspace
-* switching to workspace by name
+* Rudimentary taskbar
+  * Workspace buttons
+  * Date/time
+* Renaming a workspace
+* Switching to workspace by name
+* Launcher ($PATH only)
+
+Requirements:
+
+* Python
+* GTK
+* gtk-layer-shell
