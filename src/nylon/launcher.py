@@ -1,11 +1,68 @@
 import os
-import pathlib
 import subprocess
+from pathlib import Path
 
 from gi.repository import Gdk, Gtk, GtkLayerShell
 
 
-class Launcher(Gtk.Window):
+class Launcher:
+    def __init__(self):
+        self.window: Gtk.Window | None = None
+        self.executables_in_path: [Path] = self._executables_in_path()
+
+    def show(self):
+        """
+        Must run in GTK UI thread.
+        """
+        assert self.window is None
+        self.window = LauncherWindow(self)
+        self.window.show_all()
+
+    def launch(self, executable: Path):
+        """
+        Launch an executable, close the Launcher window.
+        """
+        subprocess.Popen(executable,
+                         start_new_session=True,
+                         cwd=os.path.expanduser("~"))
+        self.close()
+
+    def close(self):
+        self.window.close()
+        self.window = None
+
+    @staticmethod
+    def _executables_in_path() -> [Path]:
+        """
+        Find all executables in users $PATH, try to deduplicate.
+        """
+        path_entries = [Path(d) for d in os.environ["PATH"].split(":")]
+
+        # Resolve symlinks, deduplicate
+        directories_in_path: set[Path] = set()
+        for path_entry in path_entries:
+            if path_entry.is_symlink():
+                directories_in_path.add(path_entry.readlink())
+            else:
+                directories_in_path.add(path_entry)
+
+        # There should be no more symlinked directories left!
+        assert all([not d.is_symlink() for d in directories_in_path])
+
+        # Collect all the executables
+        executables: [Path] = list()
+        for d in directories_in_path:
+            # Skip non existent directories, or "." dir
+            if not d.exists() or d == Path("."):
+                continue
+            for f in d.iterdir():
+                if os.access(f, os.X_OK):
+                    executables.append(f)
+
+        return executables
+
+
+class LauncherWindow(Gtk.Window):
     styling = b"""
     box {
         margin: 4px;
@@ -15,8 +72,9 @@ class Launcher(Gtk.Window):
     }
     """
 
-    def __init__(self):
+    def __init__(self, launcher: Launcher):
         super().__init__()
+        self.launcher = launcher
         self.connect("key-press-event", self.key_pressed)
 
         # Without this GTK sizes the window to small
@@ -56,7 +114,7 @@ class Launcher(Gtk.Window):
         self.list_box.set_placeholder(placeholder_label)
 
         # Populate with list of executables
-        for executable in self._get_executables_in_path():
+        for executable in self.launcher.executables_in_path:
             label = Gtk.Label(label=f"{executable.name} ({executable})")
             label.set_halign(Gtk.Align.START)
             label.path = executable
@@ -76,39 +134,7 @@ class Launcher(Gtk.Window):
 
     def key_pressed(self, widget, event):
         if event.keyval == Gdk.KEY_Escape:
-            self.close()
-
-    @staticmethod
-    def _get_executables_in_path() -> [pathlib.Path]:
-        path_entries = [pathlib.Path(d) for d in os.environ["PATH"].split(":")]
-
-        # Resolve symlinks, deduplicate
-        directories_in_path: set[pathlib.Path] = set()
-        for path_entry in path_entries:
-            if path_entry.is_symlink():
-                directories_in_path.add(path_entry.readlink())
-            else:
-                directories_in_path.add(path_entry)
-
-        # There should be no more symlinked directories left!
-        assert all([not d.is_symlink() for d in directories_in_path])
-
-        # Collect all the executables
-        executables: [pathlib.Path] = list()
-        for d in directories_in_path:
-            # Skip non existent directories, or "." dir
-            if not d.exists() or d == pathlib.Path("."):
-                continue
-            for f in d.iterdir():
-                if os.access(f, os.X_OK):
-                    executables.append(f)
-
-        return executables
-
-    def _run_executable(self, executable: pathlib.Path):
-        subprocess.Popen(executable,
-                         start_new_session=True, cwd=os.path.expanduser("~"))
-        self.close()
+            self.launcher.close()
 
     #
     # SearchEntry
@@ -138,7 +164,7 @@ class Launcher(Gtk.Window):
     def search_entry_activate(self, entry: Gtk.SearchEntry):
         selected_executable = self.list_box_get_selected_executable()
         if selected_executable is not None:
-            self._run_executable(selected_executable)
+            self.launcher.launch(selected_executable)
         else:
             return
 
@@ -153,7 +179,8 @@ class Launcher(Gtk.Window):
             return False
 
     def list_box_row_activated(self, box: Gtk.ListBox, activated_row: Gtk.ListBoxRow):
-        self._run_executable(activated_row.get_child().path)
+        executable: Path = activated_row.get_child().path
+        self.launcher.launch(executable)
 
     def list_box_visible_rows(self) -> list[Gtk.ListBoxRow] | None:
         visible_rows = [child for child in self.list_box.get_children() if child.get_mapped()]
@@ -162,7 +189,7 @@ class Launcher(Gtk.Window):
         else:
             return None
 
-    def list_box_get_selected_executable(self) -> pathlib.Path | None:
+    def list_box_get_selected_executable(self) -> Path | None:
         selected_row = self.list_box.get_selected_row()
         if selected_row is not None:
             # return selected_row.get_child().get_text()

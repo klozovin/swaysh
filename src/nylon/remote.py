@@ -3,7 +3,8 @@ import threading
 
 from gi.repository import GLib, Gtk
 
-from . import launcher, rename_workspace, switch_workspace
+from .launcher import Launcher
+from . import rename_workspace, switch_workspace
 
 
 class RemoteControl:
@@ -12,6 +13,7 @@ class RemoteControl:
     def __init__(self):
         self.thread = threading.Thread(target=self._pipe_reader)
         self.thread.daemon = True
+        self.launcher: Launcher | None = None
 
     def start(self):
         # Clear any possible leftover commands by recreating the named pipe
@@ -34,7 +36,7 @@ class RemoteControl:
                 elif "switch-workspace" in line:
                     GLib.idle_add(self.workspace_switch)
                 elif "launcher" in line:
-                    GLib.idle_add(self.launcher)
+                    GLib.idle_add(self.show_launcher)
                 elif "exit" in line:
                     GLib.idle_add(self.close_taskbar)
                 else:
@@ -51,10 +53,12 @@ class RemoteControl:
         window = switch_workspace.WorkspaceSwitch()
         window.show_all()
 
-    @staticmethod
-    def launcher():
-        window = launcher.Launcher()
-        window.show_all()
+    def show_launcher(self):
+        if self.launcher:
+            self.launcher.show()
+        else:
+            self.launcher = Launcher()
+            self.launcher.show()
 
     @staticmethod
     def close_taskbar():
