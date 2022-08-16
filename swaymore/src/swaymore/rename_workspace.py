@@ -18,7 +18,7 @@ class WorkspaceRename(Gtk.Window):
     """
 
     def __init__(self):
-        super().__init__(title="Nylon: rename-workspace")
+        super().__init__(title="Swaymore: rename-workspace")
         self.connect("key-press-event", self.key_pressed)
 
         # Setup sway connection

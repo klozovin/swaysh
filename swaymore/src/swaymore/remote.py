@@ -8,7 +8,7 @@ from . import rename_workspace, switch_workspace
 
 
 class RemoteControl:
-    pipe_path: str = os.path.expanduser("~/.local/share/nylon/command")
+    pipe_path: str = os.path.expanduser("~/.local/share/swaymore/command")
 
     def __init__(self):
         self.thread = threading.Thread(target=self._pipe_reader)
