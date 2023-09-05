@@ -4,7 +4,7 @@ import threading
 from gi.repository import GLib, Gtk
 
 from .launcher import Launcher
-from . import rename_workspace, switch_workspace
+from . import rename_workspace, switch_workspace, move_to_workspace
 
 
 class RemoteControl:
@@ -35,6 +35,8 @@ class RemoteControl:
                     GLib.idle_add(self.workspace_rename)
                 elif "switch-workspace" in line:
                     GLib.idle_add(self.workspace_switch)
+                elif "move-to-workspace" in line:
+                    GLib.idle_add(self.workspace_move_to)
                 elif "launcher" in line:
                     GLib.idle_add(self.show_launcher)
                 elif "exit" in line:
@@ -51,6 +53,11 @@ class RemoteControl:
     @staticmethod
     def workspace_switch():
         window = switch_workspace.WorkspaceSwitch()
+        window.show_all()
+
+    @staticmethod
+    def workspace_move_to():
+        window = move_to_workspace.WorkspaceMoveTo()
         window.show_all()
 
     def show_launcher(self):
