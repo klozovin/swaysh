@@ -21,19 +21,10 @@ class WorkspaceMoveTo(Gtk.Window):
     def __init__(self):
         super().__init__(title="Swaymore: move-to-workspace")
         self.connect("key-press-event", self.key_pressed)
-        self.connect("show", self.on_show)
 
         # Setup sway connection
         self.sway = Connection()
         self.sway_workspaces = self.sway.get_workspaces()
-
-        # get the focused window
-        self.focused: i3ipc.Con = self.sway.get_tree().find_focused()
-        if self.focused is None:
-            print(f"Error: no focused container")
-            self.close()
-            return
-        print(dir(self.focused))
 
         # Load CSS
         screen = Gdk.Screen.get_default()
@@ -51,36 +42,37 @@ class WorkspaceMoveTo(Gtk.Window):
         # SearchEntry
         self.search = Gtk.SearchEntry()
         self.search.connect("activate", self.search_entry_activate)
-        self.search.connect("search-changed", self.search_changed)
+        self.search.connect("search-changed", self.search_entry_changed)
         self.search.connect("key-press-event", self.search_entry_key_pressed)
 
         # List of workspaces where it's possible to move the window to. Exclude the currently
         # focused one.
-        other_workspaces = [w for w in self.sway_workspaces if not w.focused]
+        other_workspaces = [w for w in self.sway.get_workspaces() if not w.focused]
 
-        self.workspaces = Gtk.ListBox()
-        self.list_box = self.workspaces  # todo: oh come on
+        self.list_box = Gtk.ListBox()
         # Make so that the user can't deselect the workspace
-        self.workspaces.set_selection_mode(Gtk.SelectionMode.BROWSE)
-        self.workspaces.set_filter_func(self.list_box_filter, None, False)
-        self.workspaces.connect("row-activated", self.list_box_row_activated)
-        self.workspaces.set_placeholder(Gtk.Label(visible=True, label="No workspaces match"))
+        self.list_box.set_selection_mode(Gtk.SelectionMode.BROWSE)
+        self.list_box.set_filter_func(self.list_box_filter, None, False)
+        self.list_box.connect("row-activated", self.list_box_row_activated)
+        self.list_box.set_placeholder(Gtk.Label(label="No workspaces match"))
         for w in other_workspaces:
             label = Gtk.Label(label=f"{w.name}")
-            self.workspaces.insert(label, -1)
+            self.list_box.insert(label, -1)
         # Can't use [self.list_box_select_first_visible_row] because nothing is visible yet!
-        # self.list_box_select_first_row()
+        self.list_box_select_first_row()
 
         # Box
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, homogeneous=False)
         self.box.pack_start(self.search, False, True, 0)
-        self.box.pack_start(self.workspaces, True, True, 0)
+        self.box.pack_start(self.list_box, True, True, 0)
         self.add(self.box)
 
     #
     # SearchEntry
     #
-    def search_changed(self, _entry):
+
+    def search_entry_changed(self, _entry):
+        # Re-filter the list of workspaces
         self.list_box.invalidate_filter()
         self.list_box_select_first_visible_row()
 
@@ -159,24 +151,17 @@ class WorkspaceMoveTo(Gtk.Window):
         else:
             return None
 
-
-    def on_show(self, widget):
-        # todo: select first visible row
-        pass
-
-    def get_focused_workspace(self) -> str:
-        """
-        Return the name of the currently focused sway workspace.
-        """
-        return next(w for w in self.sway_workspaces if w.focused).name
+    def sway_command(self, command: str):
+        print(f"Executing sway command: {command}")
+        results = self.sway.command(command)
+        print("Results executing command >>>")
+        for result in results:
+            print(f"\t{result.ipc_data}")
 
     def move_window_to_workspace(self, workspace: str):
-        # todo: implement this
-        command = f"move {self.focused.id} to workspace {workspace}"
-        command = f"move window to workspace {workspace}"
-        print(f"Command: {command}")
-        return
-        self.sway.command(command)
+        self.sway_command(f"move container to workspace {workspace}")
+        # FIXME: We should not switch to target workspace!
+        self.sway_command(f"workspace back_and_forth")
         self.close()
 
     def key_pressed(self, _widget, event):
@@ -184,10 +169,8 @@ class WorkspaceMoveTo(Gtk.Window):
             self.close()
 
     def list_box_row_activated(self, box: Gtk.ListBox, activated_row: Gtk.ListBoxRow):
-        # todo: move window to selected workspace
         workspace_name = activated_row.get_child().get_text()
         self.move_window_to_workspace(workspace_name)
-        pass
 
     def list_box_filter(self, row, data, notify_destroy) -> bool:
         current_search = self.search.get_text()
