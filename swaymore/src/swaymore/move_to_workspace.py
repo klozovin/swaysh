@@ -1,11 +1,10 @@
 import gi
-import i3ipc
 from i3ipc import Connection
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import Gdk, Gtk, GtkLayerShell
+from gi.repository import GLib, Gdk, Gtk, GtkLayerShell
 
 
 class WorkspaceMoveTo(Gtk.Window):
@@ -24,7 +23,6 @@ class WorkspaceMoveTo(Gtk.Window):
 
         # Setup sway connection
         self.sway = Connection()
-        self.sway_workspaces = self.sway.get_workspaces()
 
         # Load CSS
         screen = Gdk.Screen.get_default()
@@ -151,17 +149,8 @@ class WorkspaceMoveTo(Gtk.Window):
         else:
             return None
 
-    def sway_command(self, command: str):
-        print(f"Executing sway command: {command}")
-        results = self.sway.command(command)
-        print("Results executing command >>>")
-        for result in results:
-            print(f"\t{result.ipc_data}")
-
     def move_window_to_workspace(self, workspace: str):
-        self.sway_command(f"move container to workspace {workspace}")
-        # FIXME: We should not switch to target workspace!
-        self.sway_command(f"workspace back_and_forth")
+        GLib.idle_add(self.move_container_to_workspace, workspace)
         self.close()
 
     def key_pressed(self, _widget, event):
@@ -178,6 +167,11 @@ class WorkspaceMoveTo(Gtk.Window):
             return True
         else:
             return False
+
+    @staticmethod
+    def move_container_to_workspace(workspace: str):
+        sway = Connection()
+        sway.command(f"move container to workspace {workspace}")
 
 
 if __name__ == "__main__":
