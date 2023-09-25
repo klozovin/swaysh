@@ -1,6 +1,4 @@
 from datetime import datetime
-from threading import Thread
-from time import sleep
 
 from gi.repository import GLib, Gtk
 
@@ -8,15 +6,9 @@ from gi.repository import GLib, Gtk
 class Clock(Gtk.Label):
     def __init__(self):
         super().__init__(label="n/a")
-        self.thread = Thread(target=self.loop)
-        self.thread.daemon = True
-        self.thread.start()
+        self.update_time()
+        GLib.timeout_add(1000, self.update_time)
 
-    def update_time(self):
-        now = datetime.now()
-        self.set_text(now.strftime("%H:%M:%S"))
-
-    def loop(self):
-        while True:
-            sleep(1)
-            GLib.idle_add(self.update_time)
+    def update_time(self) -> bool:
+        self.set_text(datetime.now().strftime("%a, w%V: %-d.%-m.%y | %H:%M"))
+        return True
