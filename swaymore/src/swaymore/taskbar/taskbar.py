@@ -9,6 +9,7 @@ from gi.repository import Gtk, GtkLayerShell
 
 from .clock import Clock
 from .workspaces import Workspaces
+from .brightness import Brightness
 
 
 def print_current_thread():
@@ -34,11 +35,18 @@ class TaskbarWindow(Gtk.Window):
         self.workspace_switcher = Workspaces()
         self.box.pack_start(self.workspace_switcher, False, True, 0)
 
+        #
         # Blocks
-        self.clock = Clock()
-        self.box.pack_end(self.clock, False, True, 10)
-        self.box.pack_end(Gtk.Label(label="✲ 50"), False, True, 10)
-        self.box.pack_end(Gtk.Label(label="𝅘𝅥𝅯 30"), False, True, 10)
+        #
 
-        # Add everything to widow
+        # Backlight
+        self.brightness = Brightness()
+
+        # Clock
+        self.clock = Clock()
+
+        # Pack everything and add to window
+        self.box.pack_end(self.clock, False, True, 10)
+        self.box.pack_end(self.brightness, False, True, 10)
+        self.box.pack_end(Gtk.Label(label="𝅘𝅥𝅯 30"), False, True, 10)
         self.add(self.box)

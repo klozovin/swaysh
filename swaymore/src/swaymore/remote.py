@@ -29,6 +29,7 @@ class RemoteControl:
     def _pipe_reader(self):
         while True:
             # Reopen the file on every line (inefficient, but fine)
+            # TODO: why use idle_add() here?
             with open(self.pipe_path) as pipe_file:
                 line = pipe_file.readline()
                 if "rename-workspace" in line:
@@ -37,6 +38,10 @@ class RemoteControl:
                     GLib.idle_add(self.workspace_switch)
                 elif "move-to-workspace" in line:
                     GLib.idle_add(self.workspace_move_to)
+                elif "brightness-up" in line:
+                    GLib.idle_add(self.brightness_up)
+                elif "brightness-down" in line:
+                    GLib.idle_add(self.brightness_down)
                 elif "launcher" in line:
                     GLib.idle_add(self.show_launcher)
                 elif "exit" in line:
@@ -59,6 +64,14 @@ class RemoteControl:
     def workspace_move_to():
         window = move_to_workspace.WorkspaceMoveTo()
         window.show_all()
+
+    @staticmethod
+    def brightness_up():
+        print("let there be light")
+
+    @staticmethod
+    def brightness_down():
+        print("let there be no light")
 
     def show_launcher(self):
         if self.launcher:
