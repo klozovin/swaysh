@@ -1,16 +1,21 @@
+from __future__ import annotations
 import os
 import threading
+import typing
 
 from gi.repository import GLib, Gtk
-
 from .launcher import Launcher
 from . import rename_workspace, switch_workspace, move_to_workspace
+
+if typing.TYPE_CHECKING:
+    from .swaymore import Swaymore
 
 
 class RemoteControl:
     pipe_path: str = os.path.expanduser("~/.local/share/swaymore/command")
 
-    def __init__(self):
+    def __init__(self, swm: Swaymore):
+        self.swaymore = swm
         self.thread = threading.Thread(target=self._pipe_reader)
         self.thread.daemon = True
         self.launcher: Launcher | None = None
@@ -69,8 +74,8 @@ class RemoteControl:
     def brightness_up():
         print("let there be light")
 
-    @staticmethod
-    def brightness_down():
+    def brightness_down(self):
+        self.swaymore.taskbar.brightness.set_brightness_down()
         print("let there be no light")
 
     def show_launcher(self):

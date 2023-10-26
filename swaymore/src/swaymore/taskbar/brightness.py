@@ -1,3 +1,4 @@
+from enum import Enum, auto
 import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,16 @@ def threaded(block):
 
 
 class Brightness(Gtk.Label):
+    class Change(Enum):
+        UP = auto()
+        DOWN = auto()
+
+    levels = [
+        [1, 10, 1],
+        [10, 20, 2],
+        [20, 100, 5]
+    ]
+
     def __init__(self):
         super().__init__(label="✲ n/a")
         print(threading.get_ident())
@@ -25,6 +36,15 @@ class Brightness(Gtk.Label):
         current, percent, max = self._brightnessctl_info()
         print(percent)
         GLib.idle_add(lambda: self.set_text(f"✲ {percent}"))
+
+    def _change_level(self, current: int, change: Change) -> int:
+        level = current
+        # if lower_end < current <= higher_end
+        # compute new
+        # if lower than low_end, clamp to low_end
+        #    does this prevent going to 0? it should
+        # if higher than high_end, clamp to high_end
+        return level
 
     def set_brightness_up(self):
         pass
@@ -39,7 +59,8 @@ class Brightness(Gtk.Label):
             change = 2
         else:
             change = 5
-        self._brightnessctl_set(percent - change)
+        subprocess.run(["notify-send", f"{percent} -> {percent - change}"])
+        # self._brightnessctl_set(percent - change)
 
     def _brightnessctl_info(self) -> tuple[int, int, int]:
         backlight_info = (subprocess
