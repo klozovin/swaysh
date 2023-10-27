@@ -38,28 +38,34 @@ class Brightness(Gtk.Label):
         GLib.idle_add(lambda: self.set_text(f"✲ {percent}"))
 
     def _change_level(self, current: int, change: Change) -> int:
-        level = current
+        # level = current
+        new_percentage = 0
+        current_level = next(filter(lambda x: x[0] < current <= x[1], self.levels))
+        print(current_level)
+
+        subprocess.run(["notify-send", f" -> {current_level}"])
+
         # if lower_end < current <= higher_end
         # compute new
         # if lower than low_end, clamp to low_end
         #    does this prevent going to 0? it should
         # if higher than high_end, clamp to high_end
-        return level
+        return new_percentage
 
     def set_brightness_up(self):
         pass
 
     def set_brightness_down(self):
         current, percent, max = self._brightnessctl_info()
-        if percent <= 1:
-            change = 0
-        elif 1 < percent <= 10:
-            change = 1
-        elif 10 < percent <= 20:
-            change = 2
-        else:
-            change = 5
-        subprocess.run(["notify-send", f"{percent} -> {percent - change}"])
+        self._change_level(percent, self.Change.DOWN)
+        # if percent <= 1:
+        #     change = 0
+        # elif 1 < percent <= 10:
+        #     change = 1
+        # elif 10 < percent <= 20:
+        #     change = 2
+        # else:
+        #     change = 5
         # self._brightnessctl_set(percent - change)
 
     def _brightnessctl_info(self) -> tuple[int, int, int]:
