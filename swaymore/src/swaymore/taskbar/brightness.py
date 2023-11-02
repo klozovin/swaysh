@@ -1,3 +1,6 @@
+from abc import ABC
+import re
+import shutil
 from enum import Enum, auto
 import subprocess
 import threading
@@ -15,60 +18,98 @@ def threaded(block):
     return wrapper
 
 
-class Brightness(Gtk.Label):
-    class Change(Enum):
-        UP = auto()
-        DOWN = auto()
+class IBrightness(ABC):
+    @classmethod
+    def get_current_brightness(cls) -> tuple[int, int]:
+        pass
 
-    levels = [
+    @classmethod
+    def set_brightness(cls, percent: int) -> None:
+        pass
+
+
+class BrightnessChange(Enum):
+    UP = auto()
+    DOWN = auto()
+
+
+class Brightness(Gtk.Label):
+    brightness_utility: IBrightness
+    brightness_steps: list[tuple[int, int, int]] = [
         [1, 10, 1],
         [10, 20, 2],
-        [20, 100, 5]
+        [20, 50, 5],
+        [50, 100, 10]
     ]
 
     def __init__(self):
         super().__init__(label="✲ n/a")
         print(threading.get_ident())
-        self.update_backlight_level()
 
-    @threaded
-    def update_backlight_level(self):
-        current, percent, max = self._brightnessctl_info()
-        print(percent)
-        GLib.idle_add(lambda: self.set_text(f"✲ {percent}"))
+        # Check for brightness setting utility: `brightnessctl` (laptop) or `ddcutil` (desktop)
+        if shutil.which("ddcutil") is not None:
+            self.brightness_utility = DesktopBrightness()
+        elif shutil.which("brightnessctl") is not None:
+            self.brightness_utility = LaptopBrightness()
+        else:
+            raise Exception("No brightness utility found")
 
-    def _change_level(self, current: int, change: Change) -> int:
-        # level = current
-        new_percentage = 0
-        current_level = next(filter(lambda x: x[0] < current <= x[1], self.levels))
-        print(current_level)
-
-        subprocess.run(["notify-send", f" -> {current_level}"])
-
-        # if lower_end < current <= higher_end
-        # compute new
-        # if lower than low_end, clamp to low_end
-        #    does this prevent going to 0? it should
-        # if higher than high_end, clamp to high_end
-        return new_percentage
+        # Show current brightness in widget
+        self._update_backlight_level()
 
     def set_brightness_up(self):
-        pass
+        self._change_brightness_level(BrightnessChange.UP)
 
     def set_brightness_down(self):
-        current, percent, max = self._brightnessctl_info()
-        self._change_level(percent, self.Change.DOWN)
-        # if percent <= 1:
-        #     change = 0
-        # elif 1 < percent <= 10:
-        #     change = 1
-        # elif 10 < percent <= 20:
-        #     change = 2
-        # else:
-        #     change = 5
-        # self._brightnessctl_set(percent - change)
+        self._change_brightness_level(BrightnessChange.DOWN)
 
-    def _brightnessctl_info(self) -> tuple[int, int, int]:
+    @threaded
+    def _update_backlight_level(self):
+        current, max = self.brightness_utility.get_current_brightness()
+        GLib.idle_add(lambda: self.set_text(f"✲ {current}"))
+
+    @threaded
+    def _change_brightness_level(self, change: BrightnessChange):
+        current, _ = self.brightness_utility.get_current_brightness()
+
+        # Find appropriate brightness step
+        match change:
+            case BrightnessChange.UP:
+                def filter_fn(x):
+                    return x[0] <= current < x[1]
+            case BrightnessChange.DOWN:
+                def filter_fn(x):
+                    return x[0] < current <= x[1]
+        try:
+            (step_min, step_max, step) = next(filter(filter_fn, self.brightness_steps))
+        except StopIteration:
+            print("at the end of the range, will not do anything")
+            return
+
+        # Calculate new brightness level
+        new_brightness: int = 1
+        match change:
+            case BrightnessChange.UP:
+                new_brightness = current + step
+            case BrightnessChange.DOWN:
+                new_brightness = current - step
+
+        # Clamp the brightness level inside the current step
+        if new_brightness > step_max:
+            new_brightness = step_max
+        elif new_brightness < step_min:
+            new_brightness = step_min
+
+        # Change the brightness level and update the UI
+        self.brightness_utility.set_brightness(new_brightness)
+        current, _ = self.brightness_utility.get_current_brightness()
+        GLib.idle_add(lambda: self.set_text(f"✲ {current}"))
+
+
+class LaptopBrightness(IBrightness):
+    executable: str = "brightnessctl"
+
+    def get_current_brightness(self) -> tuple[int, int]:
         backlight_info = (subprocess
                           .run(["brightnessctl", "-m", "info"], capture_output=True)
                           .stdout
@@ -79,15 +120,31 @@ class Brightness(Gtk.Label):
         current_brightness: int = int(current_brightness)
         percentage: int = int(percentage.strip("%"))
         max_brightness = int(max_brightness)
-        return current_brightness, percentage, max_brightness
+        return percentage, 100
 
-    def _brightnessctl_set(self, percentage: int) -> None:
+    def set_brightness(self, percent: int) -> None:
         result = (subprocess
-                  .run(["brightnessctl", "-m", "set", f"{percentage}%"], capture_output=True)
+                  .run(["brightnessctl", "-m", "set", f"{percent}%"], capture_output=True)
                   .stdout
                   .decode("utf-8")
                   .strip()
                   .split(","))
         new_percent = int(result[3].strip("%"))
-        # TODO: raise warning instead of asserting
-        assert percentage == new_percent
+        assert percent == new_percent
+
+
+class DesktopBrightness(IBrightness):
+    executable: str = "ddcutil"
+    vcp_brightness: str = "10"  # Should be brightness on most monitors
+
+    def get_current_brightness(self) -> tuple[int, int]:
+        result = (subprocess
+                  .run([self.executable, "--terse", "getvcp", self.vcp_brightness],
+                       capture_output=True)
+                  .stdout
+                  .decode("utf-8"))
+        current, max = re.search("VCP 10 C\s(\d+)\s(\d+)", result).groups()
+        return int(current), int(max)
+
+    def set_brightness(self, percent: int) -> None:
+        subprocess.run([self.executable, "setvcp", self.vcp_brightness, str(percent)])

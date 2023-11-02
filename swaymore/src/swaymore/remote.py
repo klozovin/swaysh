@@ -70,13 +70,11 @@ class RemoteControl:
         window = move_to_workspace.WorkspaceMoveTo()
         window.show_all()
 
-    @staticmethod
-    def brightness_up():
-        print("let there be light")
+    def brightness_up(self):
+        self.swaymore.taskbar.brightness.set_brightness_up()
 
     def brightness_down(self):
         self.swaymore.taskbar.brightness.set_brightness_down()
-        print("let there be no light")
 
     def show_launcher(self):
         if self.launcher:
