@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from gi.repository import GLib, Gtk
 
+# TODO: cleanup threads on exit
 thread_pool = ThreadPoolExecutor(max_workers=None, thread_name_prefix="swm_")
 
 
