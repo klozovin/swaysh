@@ -44,7 +44,6 @@ class Volume(Gtk.Label):
     def _set_volume(self, delta: int, direction: str):
         command = ["wpctl", "set-volume", "--limit", "1.5", "@DEFAULT_AUDIO_SINK@",
                    f"{str(delta)}%{direction}"]
-        print(command)
         subprocess.run(command)
         self._update_volume()
 

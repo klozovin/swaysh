@@ -1,13 +1,13 @@
 from __future__ import annotations
 import os
 import threading
-import typing
+from typing import TYPE_CHECKING, Callable
 
 from gi.repository import GLib, Gtk
 from .launcher import Launcher
 from . import rename_workspace, switch_workspace, move_to_workspace
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from .swaymore import Swaymore
 
 
@@ -19,6 +19,24 @@ class RemoteControl:
         self.thread = threading.Thread(target=self._pipe_reader)
         self.thread.daemon = True
         self.launcher: Launcher | None = None
+
+        self.dispatch_table: list[tuple[str, Callable]] = [
+            ("rename-workspace", self.workspace_rename),
+            ("switch-workspace", self.workspace_switch),
+            ("move-to-workspace", self.workspace_move_to),
+
+            ("volume-toggle", self.volume_toggle),
+            ("volume-up", self.volume_up),
+            ("volume-down", self.volume_down),
+
+            ("brightness-up", self.brightness_up),
+            ("brightness-down", self.brightness_down),
+
+            ("launcher", self.show_launcher),
+
+            ("exit", self.close_taskbar),
+        ]
+
 
     def start(self):
         # Clear any possible leftover commands by recreating the named pipe
@@ -33,36 +51,16 @@ class RemoteControl:
 
     def _pipe_reader(self):
         while True:
-            # Reopen the file on every line (inefficient, but fine)
-            # TODO: why use idle_add() here?
             with open(self.pipe_path) as pipe_file:
                 line = pipe_file.readline()
-                if "rename-workspace" in line:
-                    GLib.idle_add(self.workspace_rename)
-                elif "switch-workspace" in line:
-                    GLib.idle_add(self.workspace_switch)
-                elif "move-to-workspace" in line:
-                    GLib.idle_add(self.workspace_move_to)
-                elif "volume-toggle" in line:
-                    GLib.idle_add(self.volume_toggle)
-                elif "volume-up" in line:
-                    GLib.idle_add(self.volume_up)
-                elif "volume-down" in line:
-                    GLib.idle_add(self.volume_down)
-                elif "brightness-up" in line:
-                    GLib.idle_add(self.brightness_up)
-                elif "brightness-down" in line:
-                    GLib.idle_add(self.brightness_down)
-                elif "launcher" in line:
-                    GLib.idle_add(self.show_launcher)
-                elif "exit" in line:
-                    GLib.idle_add(self.close_taskbar)
+                for command, callback in self.dispatch_table:
+                    if command in line:
+                        GLib.idle_add(callback)
+                        break
                 else:
-                    # TODO: Use logging for this
-                    print(f"Unknown command: {line}")
+                    print(f"remote.py> Unknown command: [{line}]")
 
-    @staticmethod
-    def workspace_rename():
+    def workspace_rename(self):
         window = rename_workspace.WorkspaceRename()
         window.show_all()
 
