@@ -107,14 +107,14 @@ class LauncherWindow(Gtk.Window):
         self.box.pack_start(self.scrolled, True, True, 2)
         self.add(self.box)
 
-    def key_pressed(self, widget, event):
+    def key_pressed(self, _widget, event):
         if event.keyval == Gdk.KEY_Escape:
             self.launcher.close()
         if event.keyval == Gdk.KEY_Break:
             Gtk.main_quit()
 
     @staticmethod
-    def list_box_filter(row) -> bool:
+    def list_box_filter(_row) -> bool:
         return True
         # current_search = self.search_entry.get_text()
         # if current_search in row.get_child().get_text().lower():

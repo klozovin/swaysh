@@ -4,6 +4,7 @@ from gi.repository import Gtk, GtkLayerShell
 from .clock import Clock
 from .workspaces import Workspaces
 from .brightness import Brightness
+from .volume import Volume
 
 
 def print_current_thread():
@@ -33,6 +34,9 @@ class TaskbarWindow(Gtk.Window):
         # Blocks
         #
 
+        # Volume
+        self.volume = Volume()
+
         # Backlight
         self.brightness = Brightness()
 
@@ -42,5 +46,5 @@ class TaskbarWindow(Gtk.Window):
         # Pack everything and add to window
         self.box.pack_end(self.clock, False, True, 10)
         self.box.pack_end(self.brightness, False, True, 10)
-        self.box.pack_end(Gtk.Label(label="𝅘𝅥𝅯 30"), False, True, 10)
+        self.box.pack_end(self.volume, False, True, 10)
         self.add(self.box)

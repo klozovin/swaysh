@@ -43,6 +43,12 @@ class RemoteControl:
                     GLib.idle_add(self.workspace_switch)
                 elif "move-to-workspace" in line:
                     GLib.idle_add(self.workspace_move_to)
+                elif "volume-toggle" in line:
+                    GLib.idle_add(self.volume_toggle)
+                elif "volume-up" in line:
+                    GLib.idle_add(self.volume_up)
+                elif "volume-down" in line:
+                    GLib.idle_add(self.volume_down)
                 elif "brightness-up" in line:
                     GLib.idle_add(self.brightness_up)
                 elif "brightness-down" in line:
@@ -69,6 +75,15 @@ class RemoteControl:
     def workspace_move_to():
         window = move_to_workspace.WorkspaceMoveTo()
         window.show_all()
+
+    def volume_toggle(self):
+        self.swaymore.taskbar.volume.volume_toggle()
+
+    def volume_up(self):
+        self.swaymore.taskbar.volume.volume_up()
+
+    def volume_down(self):
+        self.swaymore.taskbar.volume.volume_down()
 
     def brightness_up(self):
         self.swaymore.taskbar.brightness.set_brightness_up()
