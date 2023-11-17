@@ -4,6 +4,7 @@ from gi.repository import Gtk, GtkLayerShell
 from .clock import Clock
 from .workspaces import Workspaces
 from .brightness import Brightness
+from .battery import Battery
 from .volume import Volume
 
 
@@ -34,6 +35,9 @@ class TaskbarWindow(Gtk.Window):
         # Blocks
         #
 
+        # Battery
+        self.battery = Battery()
+
         # Volume
         self.volume = Volume()
 
@@ -47,4 +51,5 @@ class TaskbarWindow(Gtk.Window):
         self.box.pack_end(self.clock, False, True, 10)
         self.box.pack_end(self.brightness, False, True, 10)
         self.box.pack_end(self.volume, False, True, 10)
+        self.box.pack_end(self.battery, False, True, 10)
         self.add(self.box)
