@@ -37,9 +37,13 @@ class Volume(Gtk.Label):
     def _get_volume() -> VolumeResult:
         command = ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
         command_output = subprocess.run(command, capture_output=True, text=True).stdout
-        percent, muted = re.search("Volume:\s(\d+\.?\d+)\s?(\[MUTED])?", command_output).groups()
-        return VolumeResult(percent=int(float(percent) * 100),
+        try:
+            percent, muted = re.search("Volume:\s(\d+\.?\d+)\s?(\[MUTED])?", command_output).groups()
+            return VolumeResult(percent=int(float(percent) * 100),
                             muted=True if muted is not None else False)
+        except AttributeError as e:
+            print(command_output)
+            raise e
 
     def _set_volume(self, delta: int, direction: str):
         command = ["wpctl", "set-volume", "--limit", "1.5", "@DEFAULT_AUDIO_SINK@",
