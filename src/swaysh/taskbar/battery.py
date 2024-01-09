@@ -2,7 +2,7 @@ import enum
 from dataclasses import dataclass
 import re
 import subprocess
-from swaymore.util import thread_pool
+from swaysh.util import thread_pool
 
 from gi.repository import GLib, Gtk
 

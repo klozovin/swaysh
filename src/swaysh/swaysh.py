@@ -9,7 +9,7 @@ from .remote import RemoteControl
 from .taskbar import TaskbarWindow
 
 
-class Swaymore:
+class SwaySh:
     def __init__(self):
         self.remote_control = RemoteControl(self)
         self.taskbar = TaskbarWindow()
