@@ -18,7 +18,7 @@ class WorkspaceMoveTo(Gtk.Window):
     """
 
     def __init__(self):
-        super().__init__(title="Swaymore: move-to-workspace")
+        super().__init__(title="SwaySh: move-to-workspace")
         self.connect("key-press-event", self.key_pressed)
 
         # Setup sway connection

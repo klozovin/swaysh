@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "swaymore"
-version = "0.1.0"
+name = "swaysh"
+version = "0.2.0"
 description = "Utilities for sway"
 authors = ["klozovin"]
 license = " GPL-3.0-only"

@@ -1,4 +1,4 @@
-from swaymore.swaymore import Swaymore
+from swaysh.swaysh import SwaySh
 
-swm = Swaymore()
-swm.start()
+swaysh = SwaySh()
+swaysh.start()

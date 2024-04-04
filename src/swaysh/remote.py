@@ -8,14 +8,14 @@ from .launcher import Launcher
 from . import rename_workspace, switch_workspace, move_to_workspace
 
 if TYPE_CHECKING:
-    from .swaymore import Swaymore
+    from .swaysh import SwaySh
 
 
 class RemoteControl:
-    pipe_path: str = os.path.expanduser("~/.local/share/swaymore/command")
+    pipe_path: str = os.path.expanduser("~/.local/share/swaysh/command")
 
-    def __init__(self, swm: Swaymore):
-        self.swaymore = swm
+    def __init__(self, swsh: SwaySh):
+        self.swaysh = swsh
         self.thread = threading.Thread(target=self._pipe_reader)
         self.thread.daemon = True
         self.launcher: Launcher | None = None
@@ -75,19 +75,19 @@ class RemoteControl:
         window.show_all()
 
     def volume_toggle(self):
-        self.swaymore.taskbar.volume.volume_toggle()
+        self.swaysh.taskbar.volume.volume_toggle()
 
     def volume_up(self):
-        self.swaymore.taskbar.volume.volume_up()
+        self.swaysh.taskbar.volume.volume_up()
 
     def volume_down(self):
-        self.swaymore.taskbar.volume.volume_down()
+        self.swaysh.taskbar.volume.volume_down()
 
     def brightness_up(self):
-        self.swaymore.taskbar.brightness.set_brightness_up()
+        self.swaysh.taskbar.brightness.set_brightness_up()
 
     def brightness_down(self):
-        self.swaymore.taskbar.brightness.set_brightness_down()
+        self.swaysh.taskbar.brightness.set_brightness_down()
 
     def show_launcher(self):
         if self.launcher:
