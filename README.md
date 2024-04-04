@@ -14,3 +14,11 @@ Requirements:
 * Python
 * GTK
 * gtk-layer-shell
+
+
+Create virtual environment with system wide packages available (needed for gi)
+
+Arch Linux packages:
+
+* gtk3
+* python-gobject

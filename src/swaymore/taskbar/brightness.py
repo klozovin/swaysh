@@ -53,7 +53,7 @@ class Brightness(Gtk.Label):
         elif shutil.which("brightnessctl") is not None:
             self.brightness_utility = LaptopBrightness()
         else:
-            raise Exception("No brightness utility found")
+            raise Exception("No brightness utility found (ddcutil/brightnessctl)")
 
         # Show current brightness in widget
         self._update_backlight_level()
