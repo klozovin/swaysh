@@ -4,7 +4,7 @@ from gi.repository import Gtk, GtkLayerShell
 from .clock import Clock
 from .workspaces import Workspaces
 from .brightness import Brightness
-from .battery import Battery, createBattery
+from .battery import Battery
 from .volume import Volume
 
 
@@ -36,7 +36,7 @@ class TaskbarWindow(Gtk.Window):
         #
 
         # Battery
-        self.battery = createBattery()
+        self.battery = Battery.create()
         # self.battery = Battery()
 
         # Volume
